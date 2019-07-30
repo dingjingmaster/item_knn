@@ -7,7 +7,7 @@ today=`date -d "-1 day" +%Y-%m-%d`
 
 read_event_days='30'
 read_event_path='hdfs://10.26.29.210:8020/user/hive/warehouse/event_info.db/b_read_chapter/ds='
-read_event_gid_uid='hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/knn_'${read_event_days}'_gid_uid/'
+read_event_gid_uid="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/knn_"${read_event_days}'_gid_uid/'
 
 spark_run="spark-submit --total-executor-cores=30 --executor-memory=20g "
 
