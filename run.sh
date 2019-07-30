@@ -36,7 +36,7 @@ do
     then
         cd ${work_dir}
         hadoop fs -rmr "${read_event_gid_uid}"
-        ${spark_run} --class DataDetail ./jar/*.jar
+        ${spark_run} --class DataDetail ./jar/*.jar "${read_event_path}" "${today}" "${read_event_days}" "${read_event_gid_uid}"
         continue
     fi
     break
