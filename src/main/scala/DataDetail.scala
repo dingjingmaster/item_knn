@@ -15,7 +15,7 @@ object DataDetail {
     val readeventPath = args(0)    // 用户阅读日志
     val todayStr = args(1)         // 今天的时间
     val readeventDay = args(2)     // 阅读日志天数
-    val giduidPath = args(4)
+    val giduidPath = args(3)
 
 //    val readeventPath = "hdfs://10.26.29.210:8020/user/hive/warehouse/event_info.db/b_read_chapter/ds="    // 用户阅读日志
 //    val todayStr = "2019-07-30"         // 今天的时间
