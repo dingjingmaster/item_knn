@@ -18,7 +18,7 @@ object ItemCF {
     val conf = new SparkConf()
       .setAppName("knn_recomm")
       .set("spark.executor.memory", "20g")
-      .set("spark.driver.memory", "8g")
+      .set("spark.driver.memory", "10g")
       .set("spark.cores.max", "30")
       .set("spark.dynamicAllocation.enabled", "false")
 //                  .setMaster("local[10]")
