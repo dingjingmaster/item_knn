@@ -10,6 +10,8 @@ today="2019-07-29"
 read_event_days='30'
 read_event_path='hdfs://10.26.29.210:8020/user/hive/warehouse/event_info.db/b_read_chapter/ds='
 read_event_gid_uid="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/knn_"${read_event_days}'_gid_uid/'
+read_event_uid_map_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/uid_map/"
+read_event_gid_map_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/gid_map/"
 sim_result_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/item_recomm/"
 
 spark_run="spark-submit --total-executor-cores=30 --executor-memory=20g --driver-memory 10g "
@@ -32,21 +34,21 @@ function hdfs_exist() {
 }
 
 # 准备数据
-for((i=0;i<10;++i))
+for((i=0;i<2;++i))
 do
     hdfs_exist "${read_event_gid_uid}"
     if [[ $? -ne 0 ]]
     then
         cd ${work_dir}
         hadoop fs -rmr "${read_event_gid_uid}"
-        ${spark_run} --class DataDetail ./jar/*.jar "${read_event_path}" "${today}" "${read_event_days}" "${read_event_gid_uid}"
+        ${spark_run} --class DataDetail ./jar/*.jar "${read_event_path}" "${today}" "${read_event_days}" "${read_event_gid_map_path}" "${read_event_uid_map_path}" "${read_event_gid_uid}"
         continue
     fi
     break
 done
 
 # 计算相似度
-for((i=0;i<10;++i))
+for((i=0;i<1;++i))
 do
     hdfs_exist "${sim_result_path}"
     if [[ $? -ne 0 ]]

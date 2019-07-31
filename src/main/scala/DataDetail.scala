@@ -1,21 +1,23 @@
-import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import java.util.{Calendar, Date}
 import java.text.SimpleDateFormat
 
+import scala.collection.Map
 import com.easou.dingjing.library.ReadEvent
 
 import scala.collection.mutable.ArrayBuffer
 
 object DataDetail {
   def main(args: Array[String]): Unit = {
-    if(args.length < 4) {
+    if(args.length < 6) {
       println("请输入：")
     }
     val readeventPath = args(0)    // 用户阅读日志
     val todayStr = args(1)         // 今天的时间
     val readeventDay = args(2)     // 阅读日志天数
-    val giduidPath = args(3)
+    val gidmapPath = args(3)
+    val uidmapPath = args(4)
+    val giduidPath = args(5)
 
 //    val readeventPath = "hdfs://10.26.29.210:8020/user/hive/warehouse/event_info.db/b_read_chapter/ds="    // 用户阅读日志
 //    val todayStr = "2019-07-30"         // 今天的时间
@@ -64,9 +66,33 @@ object DataDetail {
       }).filter(x=>x._1 != "" && x._2 != "")
       readeventRDD = readeventRDD.union(dtrdd)
     }
-    // 输出
-    readeventRDD.map(x=>(x._2, List[String](x._1))).reduceByKey(_:::_).map(x=>x._1 + "\t" + x._2.mkString("{]"))
+    // 输出 uid map
+    val uidmapRDD = readeventRDD.map(x=>x._1).distinct().zipWithIndex()
+    val gidmapRDD = readeventRDD.map(x=>x._2).distinct().zipWithIndex()
+
+    uidmapRDD.repartition(1).map(x=>x._1 + "\t" + x._2).saveAsTextFile(uidmapPath)
+    gidmapRDD.repartition(1).map(x=>x._1 + "\t" + x._2).saveAsTextFile(gidmapPath)
+
+    val uidmapG = sc.broadcast(uidmapRDD.collectAsMap())
+    val gidmapG = sc.broadcast(gidmapRDD.collectAsMap())
+
+    readeventRDD.map(x=>uid_gid_map(x, uidmapG.value, gidmapG.value)).reduceByKey(_:::_).map(x=>x._1 + "\t" + x._2.mkString("{]"))
       .repartition(1).saveAsTextFile(giduidPath)
+  }
+
+  def uid_gid_map(x: Tuple2[String, String], uidmap: Map[String, Long], gidmap: Map[String, Long]): Tuple2[String, List[String]] = {
+    val gid = x._2
+    var gid0 = ""
+    val uid = x._1
+    var uid0 = ""
+
+    if (gidmap.contains(gid)) {
+      gid0 = gidmap(gid).toString
+    }
+    if (uidmap.contains(uid)) {
+      uid0 = uidmap(uid).toString
+    }
+    (gid0, List[String](uid))
   }
 
   def str_to_int(str: String): Int = {
