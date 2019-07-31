@@ -40,7 +40,7 @@ do
     if [[ $? -ne 0 ]]
     then
         cd ${work_dir}
-        hadoop fs -rmr "${read_event_gid_uid}"
+        hadoop fs -rmr "${read_event_gid_uid}" "${read_event_uid_map_path}" "${read_event_gid_map_path}"
         ${spark_run} --class DataDetail ./jar/*.jar "${read_event_path}" "${today}" "${read_event_days}" "${read_event_gid_map_path}" "${read_event_uid_map_path}" "${read_event_gid_uid}"
         continue
     fi
