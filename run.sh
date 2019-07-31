@@ -44,12 +44,7 @@ do
         ${spark_run} --class DataDetail ./jar/*.jar "${read_event_path}" "${today}" "${read_event_days}" "${read_event_gid_map_path}" "${read_event_uid_map_path}" "${read_event_gid_uid}"
         continue
     fi
-    break
-done
 
-# 计算相似度
-for((i=0;i<1;++i))
-do
     hdfs_exist "${sim_result_path}"
     if [[ $? -ne 0 ]]
     then
