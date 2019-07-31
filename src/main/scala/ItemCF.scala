@@ -1,3 +1,4 @@
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ArrayBuffer
@@ -28,7 +29,7 @@ object ItemCF {
       val gid = arr(0)
       val info = arr(1).split("\\{\\]")
       (gid, info.toSet)
-    }).persist()
+    }).persist(StorageLevel.DISK_ONLY)
     val gidudidG = sc.broadcast(giduidRDD.collect())
     val gidsimRDD = giduidRDD.map(x => calc_sim(x, gidudidG.value))
     gidsimRDD.map(x => {
