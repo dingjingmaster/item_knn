@@ -33,7 +33,7 @@ object DataDetail {
     val sc = new SparkContext(conf)
     // (uid/udid, gid)
     var readeventRDD = sc.parallelize(Seq[Tuple2[String, String]]())
-    for (i <- get_path(readeventPath, todayStr, strToInt(readeventDay))) {
+    for (i <- get_path(readeventPath, todayStr, str_to_int(readeventDay))) {
       val dtrdd = sc.textFile(i).map(x=>{
         var gid0 = ""   // 书籍id
         var uid0 = ""   // 用户id
@@ -69,7 +69,7 @@ object DataDetail {
       .repartition(1).saveAsTextFile(giduidPath)
   }
 
-  def strToInt(str: String): Int = {
+  def str_to_int(str: String): Int = {
     var a: Int = 0
     try {
       a = str.toInt
