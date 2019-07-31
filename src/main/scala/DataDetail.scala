@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat
 
 import scala.collection.Map
 import com.easou.dingjing.library.ReadEvent
+import org.apache.spark.storage.StorageLevel
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -66,6 +67,7 @@ object DataDetail {
       }).filter(x=>x._1 != "" && x._2 != "")
       readeventRDD = readeventRDD.union(dtrdd)
     }
+    readeventRDD.persist(StorageLevel.DISK_ONLY)
     // 输出 uid map
     val uidmapRDD = readeventRDD.map(x=>x._1).distinct().zipWithIndex()
     val gidmapRDD = readeventRDD.map(x=>x._2).distinct().zipWithIndex()
