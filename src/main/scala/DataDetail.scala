@@ -69,8 +69,8 @@ object DataDetail {
     }
     readeventRDD.persist(StorageLevel.DISK_ONLY)
     // 输出 uid map
-    val uidmapRDD = readeventRDD.map(x=>x._1).distinct().zipWithIndex()
-    val gidmapRDD = readeventRDD.map(x=>x._2).distinct().zipWithIndex()
+    val uidmapRDD = readeventRDD.map(x=>x._1).distinct().zipWithIndex().persist(StorageLevel.DISK_ONLY)
+    val gidmapRDD = readeventRDD.map(x=>x._2).distinct().zipWithIndex().persist(StorageLevel.DISK_ONLY)
 
     uidmapRDD.repartition(1).map(x=>x._1 + "\t" + x._2).saveAsTextFile(uidmapPath)
     gidmapRDD.repartition(1).map(x=>x._1 + "\t" + x._2).saveAsTextFile(gidmapPath)
