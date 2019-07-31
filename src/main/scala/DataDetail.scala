@@ -94,7 +94,7 @@ object DataDetail {
     if (uidmap.contains(uid)) {
       uid0 = uidmap(uid).toString
     }
-    (gid0, List[String](uid))
+    (gid0, List[String](uid0))
   }
 
   def str_to_int(str: String): Int = {
