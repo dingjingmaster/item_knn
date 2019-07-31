@@ -29,7 +29,7 @@ object ItemCF {
       val gid = arr(0)
       val info = arr(1).split("\\{\\]")
       (gid, info.toSet)
-    }).persist(StorageLevel.DISK_ONLY)
+    }).filter(_._2.nonEmpty).persist(StorageLevel.DISK_ONLY)
     val gidudidG = sc.broadcast(giduidRDD.collect())
     val gidsimRDD = giduidRDD.map(x => calc_sim(x, gidudidG.value))
     gidsimRDD.map(x => {
@@ -50,10 +50,17 @@ object ItemCF {
     var sim = 0.0
     val arraybuf = ArrayBuffer[Tuple2[String, Double]]()
     var uy = Set[String]()
+    var m = 0.0
+    var z = 0.0
     for (info <- array) {
       gidy = info._1
       uy = info._2
-      sim = ((ux & uy).size) / ((ux ++ uy).size)
+      m = (ux ++ uy).size
+      z = (ux & uy).size
+      if (m <= 0) {
+        m = 1
+      }
+      sim = z / m
       arraybuf.append((gidy, sim))
     }
     arraybuf.sortBy(x=>x._2)
