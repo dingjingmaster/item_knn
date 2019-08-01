@@ -60,9 +60,9 @@ object ItemCF {
       for (info <- array) {
         gidy = info._1
         uy = info._2
-        if(gidx == gidy) {
-          loop.break
-        }
+//        if(gidx == gidy) {
+//          loop.break
+//        }
         m = (ux ++ uy).size
         z = (ux & uy).size
         if (m <= 0) {
