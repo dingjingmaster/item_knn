@@ -51,11 +51,16 @@ object ItemCF {
   }
 
   def save_result(x: Tuple2[String, Array[Tuple2[String, Double]]], map: Map[String, String]): String = {
-    val gidx = x._1
+    var gidx = x._1
     val infoy = x._2
     var buf = ""
     var gidy = ""
     var simy = 0.0
+    if (map.contains(gidx)) {
+      gidx = map(gidx)
+    } else {
+      return ""
+    }
     for (i <- infoy) {
       if(map.contains(i._1)) {
         gidy = map(i._1)
