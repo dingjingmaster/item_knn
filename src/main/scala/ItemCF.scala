@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 
 object ItemCF {
   def main(args: Array[String]): Unit = {
-    if (args.length < 2) {
+    if (args.length < 3) {
       println("输入参数不够")
       sys.exit(1)
     }
