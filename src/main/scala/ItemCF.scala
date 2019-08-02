@@ -10,7 +10,7 @@ object ItemCF {
       println("输入参数不够")
       sys.exit(1)
     }
-    val lessPeople = 10                  // 30天内少于次数的书籍不计算
+    val lessPeople = 500                  // 30天内少于次数的书籍不计算
     val giduidPath = args(0)
     val gidRecomPath = args(1)
 
