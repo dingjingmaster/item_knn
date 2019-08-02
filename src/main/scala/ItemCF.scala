@@ -2,6 +2,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.util.control._
+import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 
 object ItemCF {
@@ -12,7 +13,8 @@ object ItemCF {
     }
     val lessPeople = 100                  // 30天内少于次数的书籍不计算
     val giduidPath = args(0)
-    val gidRecomPath = args(1)
+    val gidmapPath = args(1)
+    val gidRecomPath = args(2)
 
 //    val giduidPath = "hdfs://10.26.26.145:8020/rs/dingjing/knn/2019-07-29/knn_30_gid_uid/"
 //    val gidRecomPath = "hdfs://10.26.26.145:8020/rs/dingjing/knn/2019-07-29/item_recomm/"
@@ -26,6 +28,14 @@ object ItemCF {
 //                  .setMaster("local[10]")
       .setMaster("spark://qd01-tech2-spark001:7077,qd01-tech2-spark002:7077")
     val sc = new SparkContext(conf)
+    val gidmapRDD = sc.textFile(gidmapPath).map(x=>{
+      var ret = ("", "")
+      val arr = x.split("\t")
+      if (arr.length >= 2) {
+        ret = (arr(1), arr(0))
+      }
+      ret
+    }).filter(_._1 != "")
     val giduidRDD = sc.textFile(giduidPath).map(x => {
       val arr = x.split("\\t")
       val gid = arr(0)
@@ -33,21 +43,35 @@ object ItemCF {
       (gid, info.toSet)
     }).filter(_._2.size > lessPeople).persist(StorageLevel.DISK_ONLY)
     val gidudidG = sc.broadcast(giduidRDD.collect())
-    val gidsimRDD = giduidRDD.map(x => calc_sim(x, gidudidG.value)).filter(_._2.nonEmpty)
-    gidsimRDD.map(x => {
-      val gidx = x._1
-      val infoy = x._2
-      var buf = ""
-      for (i <- infoy) {
-        if ("" != buf) {
-          buf += "{]" + i._1 + "|" + i._2.toString
-        } else {
-          buf = i._1 + "|" + i._2.toString
-        }
-      }
-      gidx + "\t" + buf
-    }).filter(_!="").saveAsTextFile(gidRecomPath)
+    val gidsimRDD = giduidRDD.map(x => calc_sim(x, gidudidG.value)).filter(_._2.nonEmpty).persist(StorageLevel.DISK_ONLY)
+    gidudidG.destroy()
+    giduidRDD.persist(StorageLevel.NONE)
+    val gidmapG = sc.broadcast(gidmapRDD.collectAsMap())
+
+    gidsimRDD.map(x => save_result(x, gidmapG.value)).filter(_!="").repartition(1).saveAsTextFile(gidRecomPath)
   }
+
+  def save_result(x: Tuple2[String, Array[Tuple2[String, Double]]], map: Map[String, String]): String = {
+    val gidx = x._1
+    val infoy = x._2
+    var buf = ""
+    var gidy = ""
+    var simy = 0.0
+    for (i <- infoy) {
+      if(map.contains(i._1)) {
+        gidy = map(i._1)
+      } else {
+        gidy = ""
+      }
+      if ("" != buf && "" != gidy) {
+        buf += "{]" + gidy + "|" + i._2.toString
+      } else if ("" == buf && "" != gidy) {
+        buf = gidy + "|" + i._2.toString
+      }
+    }
+    gidx + "\t" + buf
+  }
+
   def calc_sim(x: Tuple2[String, Set[String]], array: Array[Tuple2[String, Set[String]]]):
       Tuple2[String, Array[Tuple2[String, Double]]] = {
     val gidx = x._1
@@ -64,14 +88,16 @@ object ItemCF {
       for (info <- array) {
         gidy = info._1
         uy = info._2
-        m = (ux ++ uy).size
-        z = (ux & uy).size
-        if (m <= 0) {
-          m = 1
-        }
-        sim = z / m
-        if (sim > 0) {
-          arraybuf.append((gidy, sim))
+        if (gidx != gidy) {
+          m = (ux ++ uy).size
+          z = (ux & uy).size
+          if (m <= 0) {
+            m = 1
+          }
+          sim = z / m
+          if (sim >= 0.0001) {
+            arraybuf.append((gidy, sim))
+          }
         }
       }
     }
