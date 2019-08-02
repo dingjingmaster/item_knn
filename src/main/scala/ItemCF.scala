@@ -10,7 +10,7 @@ object ItemCF {
       println("输入参数不够")
       sys.exit(1)
     }
-    val lessPeople = 500                  // 30天内少于次数的书籍不计算
+    val lessPeople = 100                  // 30天内少于次数的书籍不计算
     val giduidPath = args(0)
     val gidRecomPath = args(1)
 
@@ -39,9 +39,13 @@ object ItemCF {
       val infoy = x._2
       var buf = ""
       for (i <- infoy) {
-        buf += i._1 + "|" + i._2.toString + "\t"
+        if ("" != buf) {
+          buf += "{]" + i._1 + "|" + i._2.toString
+        } else {
+          buf = i._1 + "|" + i._2.toString
+        }
       }
-      gidx + "\t" + buf.trim
+      gidx + "\t" + buf
     }).filter(_!="").saveAsTextFile(gidRecomPath)
   }
   def calc_sim(x: Tuple2[String, Set[String]], array: Array[Tuple2[String, Set[String]]]):
@@ -60,20 +64,19 @@ object ItemCF {
       for (info <- array) {
         gidy = info._1
         uy = info._2
-//        if(gidx == gidy) {
-//          loop.break
-//        }
         m = (ux ++ uy).size
         z = (ux & uy).size
         if (m <= 0) {
           m = 1
         }
         sim = z / m
-        arraybuf.append((gidy, sim))
+        if (sim > 0) {
+          arraybuf.append((gidy, sim))
+        }
       }
     }
     if (arraybuf.nonEmpty) {
-      arraybuf = arraybuf.sortBy(x=>x._2)
+      arraybuf = arraybuf.sortBy(x=>x._2).reverse
     }
     (gidx, arraybuf.toArray)
   }
