@@ -43,7 +43,7 @@ object ItemCF {
       (gid, info.toSet)
     }).filter(_._2.size > lessPeople).persist(StorageLevel.DISK_ONLY)
     val gidudidG = sc.broadcast(giduidRDD.collect())
-    val gidsimRDD = giduidRDD.map(x => calc_sim(x, gidudidG.value)).filter(_._2.nonEmpty)
+    val gidsimRDD = giduidRDD.map(x => calc_sim(x, gidudidG.value)).filter(_._2.nonEmpty).persist(StorageLevel.DISK_ONLY)
     gidudidG.destroy()
     val gidmapG = sc.broadcast(gidmapRDD.collectAsMap())
 
