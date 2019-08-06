@@ -50,7 +50,7 @@ do
     then
         cd ${work_dir}
         hadoop fs -rmr "${sim_result_path}"
-        ${spark_run} --class ItemCF ./jar/*.jar "${read_event_gid_uid}" "${read_event_gid_map_path}" "${sim_result_path}"
+        ${spark_run} --class ItemCF ./jar/*.jar "${read_event_gid_uid}" "${read_event_gid_map_path}" "${read_event_uid_map_path}" "${sim_result_path}"
         continue
     fi
     break
