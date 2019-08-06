@@ -38,7 +38,7 @@ object ItemCF {
     val gidnumG = sc.broadcast(sc.textFile(gidmapPath).count())
 
     /* 生成 (gid, vector) */
-    val gidVectorRDD = sc.textFile(gidmapPath).map(x=>gid_vector(x, uidnumG.value.toInt)).persist(StorageLevel.DISK_ONLY)
+    val gidVectorRDD = sc.textFile(giduidPath).map(x=>gid_vector(x, uidnumG.value.toInt)).persist(StorageLevel.DISK_ONLY)
     val gidVectorG = sc.broadcast(gidVectorRDD.collectAsMap())
 
     /* 开始计算相似度 */
