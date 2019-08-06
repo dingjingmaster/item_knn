@@ -61,7 +61,7 @@ object ItemCF {
         value.append(1.0)
       }
     }
-    (gid, Vectors.sparse(userNum + 1, index.toArray, value.toArray))
+    (gid, Vectors.sparse(userNum,  index.toArray, value.toArray))
   }
 
 //  def save_result(x: Tuple2[String, Array[Tuple2[String, Double]]], map: Map[String, String]): String = {

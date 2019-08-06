@@ -78,7 +78,9 @@ object DataDetail {
     val uidmapG = sc.broadcast(uidmapRDD.collectAsMap())
     val gidmapG = sc.broadcast(gidmapRDD.collectAsMap())
 
-    readeventRDD.map(x=>uid_gid_map(x, uidmapG.value, gidmapG.value)).reduceByKey(_:::_).map(x=>x._1 + "\t" + x._2.mkString("{]"))
+    readeventRDD.map(x=>uid_gid_map(x, uidmapG.value, gidmapG.value)).reduceByKey(_:::_)
+      .filter(x=> x._1 != "" && x._2.nonEmpty).map(x => (x._1, x._2.toSet.toList))
+      .map(x=>x._1 + "\t" + x._2.mkString("{]"))
       .repartition(1).saveAsTextFile(giduidPath)
   }
 
