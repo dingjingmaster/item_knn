@@ -42,24 +42,26 @@ object ItemCF {
     val gidVectorG = sc.broadcast(gidVectorRDD.collectAsMap())
 
     /* 开始计算相似度 */
-    val simResult = gidVectorRDD.map(_._1).flatMap(x=>calc_sim(x, gidnumG.value, gidVectorG.value)).filter(x=>x._1 != 0 && x._2 != 0)
+    val simResult = gidVectorRDD.map(_._1).flatMap(x=>calc_sim(x, gidnumG.value.toInt, gidVectorG.value)).filter(x=>x._1 != 0 && x._2 != 0)
       .map(x => x._1.toString + "\t" + x._2.toString + "\t" + x._3.toString).repartition(1).saveAsTextFile(gidRecomPath)
 //    val gidmapG = sc.broadcast(gidmapRDD.collectAsMap())
 //
 //    gidsimRDD.map(x => save_result(x, gidmapG.value)).filter(_!="").repartition(1).saveAsTextFile(gidRecomPath)
   }
 
-  def gid_vector(x: String, userNum: Int): Tuple2[Long, Vector] = {
+  def gid_vector(x: String, userNum: Int): Tuple2[Int, Vector] = {
     val arr = x.split("\\t")
-    val gid = arr(0).toLong
+    val gid = arr(0).toInt
     val info = arr(1).split("\\{\\]")
     val index = ArrayBuffer[Int]()
     val value = ArrayBuffer[Double]()
     for (i <- info) {
-      index.append(i.toInt)
-      value.append(1.0)
+      if (i.toInt <= userNum) {
+        index.append(i.toInt)
+        value.append(1.0)
+      }
     }
-    (gid, Vectors.sparse(userNum, index.toArray, value.toArray))
+    (gid, Vectors.sparse(userNum + 1, index.toArray, value.toArray))
   }
 
 //  def save_result(x: Tuple2[String, Array[Tuple2[String, Double]]], map: Map[String, String]): String = {
@@ -98,10 +100,10 @@ object ItemCF {
     z / m
   }
 
-  def calc_sim(x: Long, max: Long, map: Map[Long, Vector]): List[Tuple3[Long, Long, Double]] = {
-    val arr = ArrayBuffer[Tuple3[Long, Long, Double]]()
-    val gidx:Long = x
-    var gidy:Long = 0
+  def calc_sim(x: Int, max: Int, map: Map[Int, Vector]): List[Tuple3[Int, Int, Double]] = {
+    val arr = ArrayBuffer[Tuple3[Int, Int, Double]]()
+    val gidx:Int = x
+    var gidy:Int = 0
     val loop = new Breaks
     var sim:Double = 0.0
 
