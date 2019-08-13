@@ -32,42 +32,59 @@ object ItemCF {
     val sc = new SparkContext(conf)
 
     /* 用户数量 */
-    val uidnumG = sc.broadcast(sc.textFile(uidmapPath).count())
+//    val uidnumG = sc.broadcast(sc.textFile(uidmapPath).count())
 
     /* 书籍数量 */
     val gidnumG = sc.broadcast(sc.textFile(gidmapPath).count())
 
-    /* 生成 (gid, vector) */
-    val gidVectorRDD = sc.textFile(giduidPath).map(x=>gid_vector(x, uidnumG.value.toInt)).persist(StorageLevel.DISK_ONLY)
-    val gidVectorG = sc.broadcast(gidVectorRDD.collectAsMap())
+    /* 生成 (gid1|gid2, 用户列表) */
+    val gidVectorRDD = sc.textFile(giduidPath).flatMap(x=>gid_vector(x, gidnumG.value.toInt)).persist(StorageLevel.DISK_ONLY)
 
     /* 开始计算相似度 */
-    val simResult = gidVectorRDD.map(_._1).flatMap(x=>calc_sim(x, gidnumG.value.toInt, gidVectorG.value)).filter(x=>x._1 != 0 && x._2 != 0)
-      .map(x => x._1.toString + "\t" + x._2.toString + "\t" + x._3.toString).repartition(1).saveAsTextFile(gidRecomPath)
+    val jaccardRDD = gidVectorRDD.reduceByKey((x, y)=>sim_jaccard(x, y))
+
+    /* 结果保存 */
+    jaccardRDD.map(x=>x._1 + "\t" + x._2).repartition(1).saveAsTextFile(gidRecomPath)
+//    val simResult = gidVectorRDD.map(_._1).flatMap(x=>calc_sim(x, gidnumG.value.toInt, gidVectorG.value)).filter(x=>x._1 != 0 && x._2 != 0)
+//      .map(x => x._1.toString + "\t" + x._2.toString + "\t" + x._3.toString).repartition(1).saveAsTextFile(gidRecomPath)
 //    val gidmapG = sc.broadcast(gidmapRDD.collectAsMap())
 //
 //    gidsimRDD.map(x => save_result(x, gidmapG.value)).filter(_!="").repartition(1).saveAsTextFile(gidRecomPath)
   }
 
-  def gid_vector(x: String, userNum: Int): Tuple2[Int, Vector] = {
+  def sim_jaccard(x: List[String], y:List[String]): List[String] = {
+    val b = x.toSet ++ y.toSet
+    val c = x.toSet & y.toSet
+    var bn = 0.0
+    var cn = c.size
+    if (b.nonEmpty) bn = b.size
+    ArrayBuffer[String]((bn / cn).toString).toList
+  }
+
+  def gid_vector(x: String, gidNum: Int): List[Tuple2[String, List[String]]] = {
     val arr = x.split("\\t")
+    val buf = ArrayBuffer[Tuple2[String, List[String]]]()
     val gid = arr(0).toInt
-    val info = arr(1).split("\\{\\]")
-    val index = ArrayBuffer[Int]()
-    val value = ArrayBuffer[Double]()
-    for (i <- info) {
-      if (i.toInt <= userNum) {
-        index.append(i.toInt)
-        value.append(1.0)
+    val info = arr(1).split("\\{\\]").toSet.toList
+    val break = new Breaks
+//    break.breakable{
+    for (i <- 1 until gidNum) {
+      val tmp = ArrayBuffer[Int]()
+      tmp.append(gid)
+      tmp.append(i)
+      if (tmp.length == 2) {
+        buf.append((tmp.sorted.mkString("|"), info))
       }
     }
-    (gid, Vectors.sparse(userNum,  index.toArray, value.toArray))
+//    }
+    for (i <- buf.toList)
+      yield i
   }
 
 //  def save_result(x: Tuple2[String, Array[Tuple2[String, Double]]], map: Map[String, String]): String = {
 //    var gidx = x._1
 //    val infoy = x._2
-//    var buf = ""
+//    var buf = ""`
 //    var gidy = ""
 //    var simy = 0.0
 //    if (map.contains(gidx)) {
