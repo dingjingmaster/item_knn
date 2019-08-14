@@ -1,6 +1,7 @@
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
+import org.spark_project.dmg.pmml.True
 
 import scala.util.control._
 import scala.collection.Map
@@ -35,78 +36,99 @@ object ItemCF {
 
     /* 获取 (gid, List(uid))列表 */
     val gidUidRDD = sc.textFile(giduidPath).map(x=>x.split("\t"))
-      .filter(_.length >= 2).map(x=>(x(0).toInt, x(1).split("\\{\\]").toList))
-      .filter(_._2.length>=lessPeople).persist(StorageLevel.DISK_ONLY)
+      .filter(_.length >= 2).map(x=>(x(0), x(1).split("\\{\\]").toSet))
+      .filter(_._2.size>=lessPeople).persist(StorageLevel.DISK_ONLY)
 
     /* 参与计算的gid */
-    val gidDictG = sc.broadcast(gidUidRDD.map(x=>(x._1, true)).collectAsMap())
+    val gidDictG = sc.broadcast(gidUidRDD.collect())
 
     println("\n********************\n参与计算的物品数量：" + gidUidRDD.count() + "\n********************\n")
 
     /* 生成 (gid1|gid2, 用户列表) */
-    val gidPairRDD = gidUidRDD.flatMap(x=>{
-      val gid1 = x._1
-      val uidInfo = x._2
-      val buf = ArrayBuffer[Tuple2[String, List[String]]]()
+//    val gidPairRDD = gidUidRDD.flatMap(x=>{
+//      val gid1 = x._1
+//      val uidInfo = x._2
+//      val buf = ArrayBuffer[Tuple2[String, List[String]]]()
+//
+//      if (gidDictG.value.contains(gid1)) {
+//
+//
+//
+//        for (i <- 1 until gidnumG.value.toInt) {
+//          if(gidDictG.value.contains(i)) {
+//            if(i > gid1) {
+//              buf.append((gid1.toString + "|" + i.toString, uidInfo))
+//            } else {
+//              buf.append((i.toString + "|" + gid1.toString, uidInfo))
+//            }
+//          }
+//        }
+//      }
+//
+//      for (i <- buf.toList)
+//        yield i
+//    })
+//
+//    val jaccardRDD = gidPairRDD.reduceByKey((x, y)=>sim_jaccard(x, y))
 
-      if (gidDictG.value.contains(gid1)){
-        for (i <- 1 until gidnumG.value.toInt) {
-          if(gidDictG.value.contains(i)) {
-            if(i > gid1) {
-              buf.append((gid1.toString + "|" + i.toString, uidInfo))
-            } else {
-              buf.append((i.toString + "|" + gid1.toString, uidInfo))
-            }
-          }
-        }
-      }
-
-      for (i <- buf.toList)
-        yield i
-    })
-
-    val jaccardRDD = gidPairRDD.reduceByKey((x, y)=>sim_jaccard(x, y))
+    ////////////////////////////// broadcast ///////////////////////////////////////////
+    val jaccardRDD = gidUidRDD.map(x=>calc_sim(x, gidDictG.value)).map(x=>x._1 + "\t" + x._2.mkString("{]"))
+    ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
-    jaccardRDD.map(x=>x._1 + "\t" + x._2).repartition(1).saveAsTextFile(gidRecomPath)
+    jaccardRDD.repartition(1).saveAsTextFile(gidRecomPath)
   }
 
-  def sim_jaccard(x: List[String], y:List[String]): List[String] = {
-    val b = x.toSet ++ y.toSet
-    val c = x.toSet & y.toSet
-    var bn = 0.0
-    var cn = c.size
-    if (b.nonEmpty) bn = b.size
-    ArrayBuffer[String]((bn / cn).toString).toList
-  }
-
-  def gid_vector(x: String, gidNum: Int): List[Tuple2[String, List[String]]] = {
-    val arr = x.split("\\t")
-    val buf = ArrayBuffer[Tuple2[String, List[String]]]()
-    val gid = arr(0).toInt
-    val info = arr(1).split("\\{\\]").toSet.toList
-    val break = new Breaks
-//    break.breakable{
-    for (i <- 1 until gidNum) {
-      val tmp = ArrayBuffer[Int]()
-      tmp.append(gid)
-      tmp.append(i)
-      if (tmp.length == 2) {
-        buf.append((tmp.sorted.mkString("|"), info))
-      }
-    }
+//  def sim_jaccard(x: List[String], y:List[String]): List[String] = {
+//    val b = x.toSet ++ y.toSet
+//    val c = x.toSet & y.toSet
+//    var bn = 0.0
+//    val cn = c.size
+//    if (b.nonEmpty) bn = b.size.toFloat
+//    ArrayBuffer[String]((bn / cn).toString).toList
+//  }
+//
+//  def gid_vector(x: String, gidNum: Int): List[Tuple2[String, List[String]]] = {
+//    val arr = x.split("\\t")
+//    val buf = ArrayBuffer[Tuple2[String, List[String]]]()
+//    val gid = arr(0).toInt
+//    val info = arr(1).split("\\{\\]").toSet.toList
+//    val break = new Breaks
+////    break.breakable{
+//    for (i <- 1 until gidNum) {
+//      val tmp = ArrayBuffer[Int]()
+//      tmp.append(gid)
+//      tmp.append(i)
+//      if (tmp.length == 2) {
+//        buf.append((tmp.sorted.mkString("|"), info))
+//      }
 //    }
-    for (i <- buf.toList)
-      yield i
+////    }
+//    for (i <- buf.toList)
+//      yield i
+//  }
+  def calc_sim (x: Tuple2[String, Set[String]], all: Array[Tuple2[String, Set[String]]]):
+        Tuple2[String, Array[Tuple2[String,Double]]] = {
+    val gid1 = x._1
+    val uid1 = x._2
+    var gid2 = ""
+    var sim = 0.0
+    val arr = ArrayBuffer[Tuple2[String, Double]]()
+
+    val u2 = all.iterator
+    while (u2.hasNext) {
+      val it = u2.next()
+      gid2 = it._1
+      val uid2 = it._2
+      sim = jaccard(uid1, uid2)
+      arr.append((gid2, sim))
+    }
+    (gid1, arr.toArray)
   }
 
-  /* 计算相似度 */
-  def jaccard(x: Vector, y:Vector): Double = {
-    var m = (x.toSparse.indices.toSet ++ y.toSparse.indices.toSet).size.toDouble
-    val z = (x.toSparse.indices.toSet & y.toSparse.indices.toSet).size
-    if (m <= 0) {
-      m = 1
-    }
+  def jaccard (x: Set[String], y: Set[String]): Double = {
+    val z = (x & y).size.toDouble
+    val m = (x ++ y).size.toDouble
     z / m
   }
 }
