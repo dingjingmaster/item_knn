@@ -38,6 +38,9 @@ object ItemCF {
       .filter(_.length >= 2).map(x=>(x(0).toInt, x(1).split("\\{\\]").toList))
       .filter(_._2.length>=lessPeople).persist(StorageLevel.DISK_ONLY)
 
+    /* 参与计算的gid */
+    val gidDictG = sc.broadcast(gidUidRDD.map(x=>(x._1, true)).collectAsMap())
+
     println("\n********************\n参与计算的物品数量：" + gidUidRDD.count() + "\n********************\n")
 
     /* 生成 (gid1|gid2, 用户列表) */
@@ -46,11 +49,15 @@ object ItemCF {
       val uidInfo = x._2
       val buf = ArrayBuffer[Tuple2[String, List[String]]]()
 
+      if (!gidDictG.value.contains(gid1)) return
+
       for (i <- 1 until gidnumG.value.toInt) {
-        if(i > gid1) {
-          buf.append((gid1.toString + "|" + i.toString, uidInfo))
-        } else {
-          buf.append((i.toString + "|" + gid1.toString, uidInfo))
+        if(gidDictG.value.contains(i)) {
+          if(i > gid1) {
+            buf.append((gid1.toString + "|" + i.toString, uidInfo))
+          } else {
+            buf.append((i.toString + "|" + gid1.toString, uidInfo))
+          }
         }
       }
 
