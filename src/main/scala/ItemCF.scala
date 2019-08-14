@@ -49,14 +49,14 @@ object ItemCF {
       val uidInfo = x._2
       val buf = ArrayBuffer[Tuple2[String, List[String]]]()
 
-      if (!gidDictG.value.contains(gid1)) return
-
-      for (i <- 1 until gidnumG.value.toInt) {
-        if(gidDictG.value.contains(i)) {
-          if(i > gid1) {
-            buf.append((gid1.toString + "|" + i.toString, uidInfo))
-          } else {
-            buf.append((i.toString + "|" + gid1.toString, uidInfo))
+      if (gidDictG.value.contains(gid1)){
+        for (i <- 1 until gidnumG.value.toInt) {
+          if(gidDictG.value.contains(i)) {
+            if(i > gid1) {
+              buf.append((gid1.toString + "|" + i.toString, uidInfo))
+            } else {
+              buf.append((i.toString + "|" + gid1.toString, uidInfo))
+            }
           }
         }
       }
