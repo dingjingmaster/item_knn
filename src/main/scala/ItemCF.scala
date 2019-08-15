@@ -134,6 +134,10 @@ object ItemCF {
     ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
+    val gidMapG = sc.broadcast(
+      sc.textFile(gidmapPath)
+        .map(_.split("\t"))
+        .map(x=>(x(0), x(1))).collectAsMap())
     jaccardRDD.saveAsTextFile(gidRecomPath)
   }
 
