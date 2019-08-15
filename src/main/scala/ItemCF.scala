@@ -32,7 +32,7 @@ object ItemCF {
 //                  .setMaster("local[10]")
       .setMaster("spark://qd01-tech2-spark001:7077,qd01-tech2-spark002:7077")
     val sc = new SparkContext(conf)
-    val log = Logger.getLogger("org")
+    val log = Logger.getLogger("item knn")
 
     /* 书籍数量 */
 //    val gidnumG = sc.broadcast(sc.textFile(gidmapPath).count())
@@ -51,56 +51,30 @@ object ItemCF {
     /* 单机执行相似度计算 */
     val gidUidLocal = gidUidRDD.collect()
     val arr = new ArrayBuffer[Tuple3[String, String, Double]]()
-    val it1 = gidUidLocal.iterator
+    var it1 = 0
     var index = 1
+    val arrlen = gidUidLocal.length
 
-    while (it1.hasNext) {
-      val info1 = it1.next()
+    while (it1 < arrlen) {
+      val info1 = gidUidLocal(it1)
       val gid1 = info1._1
       val uid1 = info1._2
-      val it2 = gidUidLocal.iterator
-      while (it2.hasNext) {
-        val info2 = it2.next()
+      var it2 = it1 + 1
+      while (it2 < arrlen) {
+        val info2 = gidUidLocal(it2)
         val gid2 = info2._1
         val uid2 = info2._2
-        if (gid2.toInt > gid1.toInt) {
-          val sim = jaccard(uid1, uid2)
-          arr.append((gid1, gid2, sim))
-        }
+        val sim = jaccard(uid1, uid2)
+        arr.append((gid1, gid2, sim))
+        it2 += 1
       }
       if (index % 100 == 0)
       log.info("物品相似度计算 %d 完成！ 完成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
       index += 1
+      it1 += 1
     }
-
     val jaccardRDD = sc.parallelize(arr).map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
-    /////////////////////////////////////////////////////////////////////////////////////
-    /* 生成 (gid1|gid2, 用户列表) */
-//    val gidPairRDD = gidUidRDD.flatMap(x=>{
-//      val gid1 = x._1
-//      val uidInfo = x._2
-//      val buf = ArrayBuffer[Tuple2[String, List[String]]]()
-//
-//      if (gidDictG.value.contains(gid1)) {
-//
-//
-//
-//        for (i <- 1 until gidnumG.value.toInt) {
-//          if(gidDictG.value.contains(i)) {
-//            if(i > gid1) {
-//              buf.append((gid1.toString + "|" + i.toString, uidInfo))
-//            } else {
-//              buf.append((i.toString + "|" + gid1.toString, uidInfo))
-//            }
-//          }
-//        }
-//      }
-//
-//      for (i <- buf.toList)
-//        yield i
-//    })
-//
-//    val jaccardRDD = gidPairRDD.reduceByKey((x, y)=>sim_jaccard(x, y))
+    ////////////////////////////////////  单机版结束  ////////////////////////////////////////////
 
     ////////////////////////////// broadcast ///////////////////////////////////////////
 //    val jaccardRDD = gidUidRDD.map(x=>calc_sim(x, gidDictG.value)).map(x=>x._1 + "\t" + x._2.mkString("{]"))
