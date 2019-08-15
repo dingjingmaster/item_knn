@@ -129,8 +129,8 @@ object ItemCF {
       if(gidUidDictG.value.contains(gid1) && gidUidDictG.value.contains(gid2)) {
         sim = jaccard(gidUidDictG.value(gid1), gidUidDictG.value(gid2))
       }
-      (gid1, gid2, sim.toString)
-    })
+      (gid1, gid2, sim)
+    }).filter(_._3 > 0)
     ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
@@ -139,11 +139,9 @@ object ItemCF {
         .map(_.split("\t"))
         .map(x=>(x(0).toInt, x(1))).collectAsMap())
     jaccardRDD.map(x=>{
-      val gid1 = x._1
-      val gid2 = x._2
       var str = ""
-      if(gidMapG.value.contains(gid1) && gidMapG.value.contains(gid2)) {
-        str = gidMapG.value(gid1) + "\t" + gidMapG.value(gid2) + "\t" + x._3
+      if(gidMapG.value.contains(x._1) && gidMapG.value.contains(x._2)) {
+        str = gidMapG.value(x._1) + "\t" + gidMapG.value(x._2) + "\t" + x._3.toString
       }
       str
     }).saveAsTextFile(gidRecomPath)
