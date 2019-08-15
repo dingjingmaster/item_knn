@@ -68,7 +68,7 @@ object ItemCF {
           arr.append((gid1, gid2, sim))
         }
       }
-      log.info("物品相似度计算 %s 完成！ 完成占比: %2.3f %%!".format(index, index.toFloat/itemCount * 100))
+      log.info("物品相似度计算 %d 完成！ 完成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
       index += 1
     }
 
