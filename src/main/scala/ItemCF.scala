@@ -113,15 +113,12 @@ object ItemCF {
       val gid1 = x
       val it = gidUidListG.value.iterator
       val arr = ListBuffer[Tuple2[Int, Int]]()
-
       while (it.hasNext) {
         arr.append((gid1, it.next()))
       }
-
       for (i <- arr)
         yield i
     }).persist(StorageLevel.DISK_ONLY)
-    gidUidListG.destroy()
     val gidUidDictG = sc.broadcast(gidUidRDD.map(x=>(x._1.toInt, x._2)).collectAsMap())
     gidUidRDD.unpersist(true)
     val jaccardRDD = gidUidRDD1.map(x=>{
