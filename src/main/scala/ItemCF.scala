@@ -129,16 +129,24 @@ object ItemCF {
       if(gidUidDictG.value.contains(gid1) && gidUidDictG.value.contains(gid2)) {
         sim = jaccard(gidUidDictG.value(gid1), gidUidDictG.value(gid2))
       }
-      (gid1.toString, gid2.toString, sim.toString)
-    }).map(x=>x._1 + "\t" + x._2 + "\t" + x._3)
+      (gid1, gid2, sim.toString)
+    })
     ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
     val gidMapG = sc.broadcast(
       sc.textFile(gidmapPath)
         .map(_.split("\t"))
-        .map(x=>(x(0), x(1))).collectAsMap())
-    jaccardRDD.saveAsTextFile(gidRecomPath)
+        .map(x=>(x(0).toInt, x(1))).collectAsMap())
+    jaccardRDD.map(x=>{
+      val gid1 = x._1
+      val gid2 = x._2
+      var str = ""
+      if(gidMapG.value.contains(gid1) && gidMapG.value.contains(gid2)) {
+        str = gidMapG.value(gid1) + "\t" + gidMapG.value(gid2) + "\t" + x._3
+      }
+      str
+    }).saveAsTextFile(gidRecomPath)
   }
 
   def calc_sim (x: Int, y: Int, dict: Map[Int, Set[String]]): Tuple3[String, String, Double] = {
