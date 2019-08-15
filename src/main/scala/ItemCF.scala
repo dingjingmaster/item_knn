@@ -58,13 +58,15 @@ object ItemCF {
       val info1 = it1.next()
       val gid1 = info1._1
       val uid1 = info1._2
-      val it2 = it1.toIterator
+      val it2 = gidUidLocal.iterator
       while (it2.hasNext) {
         val info2 = it2.next()
         val gid2 = info2._1
         val uid2 = info2._2
-        val sim = jaccard(uid1, uid2)
-        arr.append((gid1, gid2, sim))
+        if (gid2.toInt > gid1.toInt) {
+          val sim = jaccard(uid1, uid2)
+          arr.append((gid1, gid2, sim))
+        }
       }
       log.info("物品相似度计算 %s 完成！ 完成占比: %2.3f %%!".format(index, index.toFloat/itemCount * 100))
     }
