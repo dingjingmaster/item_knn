@@ -69,6 +69,7 @@ object ItemCF {
         }
       }
       log.info("物品相似度计算 %s 完成！ 完成占比: %2.3f %%!".format(index, index.toFloat/itemCount * 100))
+      index += 1
     }
 
     val jaccardRDD = sc.parallelize(arr).map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
