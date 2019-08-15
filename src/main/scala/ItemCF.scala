@@ -1,3 +1,5 @@
+import java.util
+
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
@@ -71,26 +73,23 @@ object ItemCF {
     ////////////////////////////////////  单机版结束  ////////////////////////////////////////////
 
 
-    ///////////////////////////////////  重新生成方式  ////////////////////////////////////////////
+    ///////////////////////////////////  全局变量  ////////////////////////////////////////////
     val itemCount = gidUidRDD.count()
     log.info("参与计算的物品数量：%d".format(itemCount))
     /* 开始计算 */
-    val gidUidLocal = gidUidRDD.collect()
-    val arr = new ArrayBuffer[Tuple4[String, String, Set[String], Set[String]]]()
+    val gidUidG = sc.broadcast(gidUidRDD.collectAsMap())
+    val gidUidLocal = gidUidRDD.map(_._1).collect()
+    val arr = new collection.mutable.ListBuffer[Tuple2[String, String]]()
     var it1 = 0
     var index = 1
     val arrlen = gidUidLocal.length
 
     while (it1 < arrlen) {
-      val info1 = gidUidLocal(it1)
-      val gid1 = info1._1
-      val uid1 = info1._2
+      val gid1 = gidUidLocal(it1)
       var it2 = it1 + 1
       while (it2 < arrlen) {
-        val info2 = gidUidLocal(it2)
-        val gid2 = info2._1
-        val uid2 = info2._2
-        arr.append((gid1, gid2, uid1, uid2))
+        val gid2 = gidUidLocal(it2)
+        arr.append((gid1, gid2))
         it2 += 1
       }
       if (index % 100 == 0)
@@ -99,7 +98,7 @@ object ItemCF {
       it1 += 1
     }
     val jaccardRDD = sc.parallelize(arr,1000)
-      .map(x=>(x._1, x._2, jaccard(x._3, x._4)))
+      .map(x=>calc_sim(x._1, x._2, gidUidG.value))
       .map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -111,34 +110,13 @@ object ItemCF {
     jaccardRDD.repartition(1).saveAsTextFile(gidRecomPath)
   }
 
-//  def sim_jaccard(x: List[String], y:List[String]): List[String] = {
-//    val b = x.toSet ++ y.toSet
-//    val c = x.toSet & y.toSet
-//    var bn = 0.0
-//    val cn = c.size
-//    if (b.nonEmpty) bn = b.size.toFloat
-//    ArrayBuffer[String]((bn / cn).toString).toList
-//  }
-//
-//  def gid_vector(x: String, gidNum: Int): List[Tuple2[String, List[String]]] = {
-//    val arr = x.split("\\t")
-//    val buf = ArrayBuffer[Tuple2[String, List[String]]]()
-//    val gid = arr(0).toInt
-//    val info = arr(1).split("\\{\\]").toSet.toList
-//    val break = new Breaks
-////    break.breakable{
-//    for (i <- 1 until gidNum) {
-//      val tmp = ArrayBuffer[Int]()
-//      tmp.append(gid)
-//      tmp.append(i)
-//      if (tmp.length == 2) {
-//        buf.append((tmp.sorted.mkString("|"), info))
-//      }
-//    }
-////    }
-//    for (i <- buf.toList)
-//      yield i
-//  }
+  def calc_sim (x: String, y: String, dict: Map[String, Set[String]]): Tuple3[String, String, Double] = {
+    var sim = 0.0
+    if (dict.contains(x) && dict.contains(y)) {
+      sim = jaccard(dict(x), dict(y))
+    }
+    (x, y, sim)
+  }
   def calc_sim (x: Tuple2[String, Set[String]], all: Array[Tuple2[String, Set[String]]]):
         Tuple2[String, Array[Tuple2[String,Double]]] = {
     val gid1 = x._1
