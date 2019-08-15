@@ -34,23 +34,49 @@ object ItemCF {
     val sc = new SparkContext(conf)
     val log = Logger.getLogger("item knn")
 
-    /* 书籍数量 */
-//    val gidnumG = sc.broadcast(sc.textFile(gidmapPath).count())
-
     /* 获取 (gid, List(uid))列表 */
     val gidUidRDD = sc.textFile(giduidPath).map(x=>x.split("\t"))
       .filter(_.length >= 2).map(x=>(x(0), x(1).split("\\{\\]").toSet))
       .filter(_._2.size>=lessPeople).persist(StorageLevel.DISK_ONLY)
 
-    /* 参与计算的gid */
-    val gidDictG = sc.broadcast(gidUidRDD.collect())
+    /////////////////////////////////// 单机执行 /////////////////////////////////////////
+//    val itemCount = gidUidRDD.count()
+//    log.info("参与计算的物品数量：%d".format(itemCount))
+//    /* 开始计算 */
+//    val gidUidLocal = gidUidRDD.collect()
+//    val arr = new ArrayBuffer[Tuple3[String, String, Double]]()
+//    var it1 = 0
+//    var index = 1
+//    val arrlen = gidUidLocal.length
+//
+//    while (it1 < arrlen) {
+//      val info1 = gidUidLocal(it1)
+//      val gid1 = info1._1
+//      val uid1 = info1._2
+//      var it2 = it1 + 1
+//      while (it2 < arrlen) {
+//        val info2 = gidUidLocal(it2)
+//        val gid2 = info2._1
+//        val uid2 = info2._2
+//        val sim = jaccard(uid1, uid2)
+//        arr.append((gid1, gid2, sim))
+//        it2 += 1
+//      }
+//      if (index % 100 == 0)
+//      log.info("物品相似度计算 %d 完成！ 完成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
+//      index += 1
+//      it1 += 1
+//    }
+//    val jaccardRDD = sc.parallelize(arr).map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
+    ////////////////////////////////////  单机版结束  ////////////////////////////////////////////
+
+
+    ///////////////////////////////////  重新生成方式  ////////////////////////////////////////////
     val itemCount = gidUidRDD.count()
     log.info("参与计算的物品数量：%d".format(itemCount))
-
-    /////////////////////////////////// 单机执行 /////////////////////////////////////////
-    /* 单机执行相似度计算 */
+    /* 开始计算 */
     val gidUidLocal = gidUidRDD.collect()
-    val arr = new ArrayBuffer[Tuple3[String, String, Double]]()
+    val arr = new ArrayBuffer[Tuple4[String, String, Set[String], Set[String]]]()
     var it1 = 0
     var index = 1
     val arrlen = gidUidLocal.length
@@ -64,17 +90,18 @@ object ItemCF {
         val info2 = gidUidLocal(it2)
         val gid2 = info2._1
         val uid2 = info2._2
-        val sim = jaccard(uid1, uid2)
-        arr.append((gid1, gid2, sim))
+        arr.append((gid1, gid2, uid1, uid2))
         it2 += 1
       }
       if (index % 100 == 0)
-      log.info("物品相似度计算 %d 完成！ 完成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
+        log.info("物品相似度对 %d 生成！ 生成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
       index += 1
       it1 += 1
     }
-    val jaccardRDD = sc.parallelize(arr).map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
-    ////////////////////////////////////  单机版结束  ////////////////////////////////////////////
+    val jaccardRDD = sc.parallelize(arr,1000)
+      .map(x=>(x._1, x._2, jaccard(x._3, x._4)))
+      .map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////// broadcast ///////////////////////////////////////////
 //    val jaccardRDD = gidUidRDD.map(x=>calc_sim(x, gidDictG.value)).map(x=>x._1 + "\t" + x._2.mkString("{]"))
