@@ -2,6 +2,8 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg._
 import org.spark_project.dmg.pmml.True
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
 
 import scala.util.control._
 import scala.collection.Map
@@ -30,9 +32,10 @@ object ItemCF {
 //                  .setMaster("local[10]")
       .setMaster("spark://qd01-tech2-spark001:7077,qd01-tech2-spark002:7077")
     val sc = new SparkContext(conf)
+    val log = Logger.getLogger("org")
 
     /* 书籍数量 */
-    val gidnumG = sc.broadcast(sc.textFile(gidmapPath).count())
+//    val gidnumG = sc.broadcast(sc.textFile(gidmapPath).count())
 
     /* 获取 (gid, List(uid))列表 */
     val gidUidRDD = sc.textFile(giduidPath).map(x=>x.split("\t"))
@@ -41,9 +44,33 @@ object ItemCF {
 
     /* 参与计算的gid */
     val gidDictG = sc.broadcast(gidUidRDD.collect())
+    val itemCount = gidUidRDD.count()
+    log.info("参与计算的物品数量：%d".format(itemCount))
 
-    println("\n********************\n参与计算的物品数量：" + gidUidRDD.count() + "\n********************\n")
+    /////////////////////////////////// 单机执行 /////////////////////////////////////////
+    /* 单机执行相似度计算 */
+    val gidUidLocal = gidUidRDD.collect()
+    val arr = new ArrayBuffer[Tuple3[String, String, Double]]()
+    val it1 = gidUidLocal.iterator
+    var index = 1
 
+    while (it1.hasNext) {
+      val info1 = it1.next()
+      val gid1 = info1._1
+      val uid1 = info1._2
+      val it2 = it1.toIterator
+      while (it2.hasNext) {
+        val info2 = it2.next()
+        val gid2 = info2._1
+        val uid2 = info2._2
+        val sim = jaccard(uid1, uid2)
+        arr.append((gid1, gid2, sim))
+      }
+      log.info("物品相似度计算 %s 完成！ 完成占比: %2.3f %%!".format(index, index.toFloat/itemCount * 100))
+    }
+
+    val jaccardRDD = sc.parallelize(arr).map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
+    /////////////////////////////////////////////////////////////////////////////////////
     /* 生成 (gid1|gid2, 用户列表) */
 //    val gidPairRDD = gidUidRDD.flatMap(x=>{
 //      val gid1 = x._1
@@ -72,7 +99,7 @@ object ItemCF {
 //    val jaccardRDD = gidPairRDD.reduceByKey((x, y)=>sim_jaccard(x, y))
 
     ////////////////////////////// broadcast ///////////////////////////////////////////
-    val jaccardRDD = gidUidRDD.map(x=>calc_sim(x, gidDictG.value)).map(x=>x._1 + "\t" + x._2.mkString("{]"))
+//    val jaccardRDD = gidUidRDD.map(x=>calc_sim(x, gidDictG.value)).map(x=>x._1 + "\t" + x._2.mkString("{]"))
     ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
