@@ -77,26 +77,29 @@ object ItemCF {
     val itemCount = gidUidRDD.count()
     log.info("参与计算的物品数量：%d".format(itemCount))
     /* 开始计算 */
-    val gidUidG = sc.broadcast(gidUidRDD.collectAsMap())
-    val gidUidLocal = gidUidRDD.map(_._1).collect()
-    val arr = new collection.mutable.ListBuffer[Tuple2[String, String]]()
-    var it1 = 0
+    var gid1 = 0
+    var gid2 = 0
     var index = 1
+    val gidUidLocal = gidUidRDD.map(_._1.toInt).collect()
+    var it1 = gidUidLocal.iterator
     val arrlen = gidUidLocal.length
+    val arr = new collection.mutable.ListBuffer[Tuple2[Int, Int]]()
 
-    while (it1 < arrlen) {
-      val gid1 = gidUidLocal(it1)
-      var it2 = it1 + 1
-      while (it2 < arrlen) {
-        val gid2 = gidUidLocal(it2)
-        arr.append((gid1, gid2))
-        it2 += 1
+    while (it1.hasNext) {
+      gid1 = it1.next()
+      val it2 = gidUidLocal.iterator
+      while (it2.hasNext) {
+        gid2 = it2.next()
+        if(gid2 > gid1) {
+          arr.append((gid1, gid2))
+        }
       }
       if (index % 100 == 0)
         log.info("物品相似度对 %d 生成！ 生成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
       index += 1
-      it1 += 1
     }
+    val gidUidG = sc.broadcast(gidUidRDD.map(x=>(x._1.toInt, x._2)).collectAsMap())
+    gidUidRDD.unpersist(true)
     val jaccardRDD = sc.parallelize(arr,1000)
       .map(x=>calc_sim(x._1, x._2, gidUidG.value))
       .map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
@@ -110,12 +113,12 @@ object ItemCF {
     jaccardRDD.repartition(1).saveAsTextFile(gidRecomPath)
   }
 
-  def calc_sim (x: String, y: String, dict: Map[String, Set[String]]): Tuple3[String, String, Double] = {
+  def calc_sim (x: Int, y: Int, dict: Map[Int, Set[String]]): Tuple3[String, String, Double] = {
     var sim = 0.0
     if (dict.contains(x) && dict.contains(y)) {
       sim = jaccard(dict(x), dict(y))
     }
-    (x, y, sim)
+    (x.toString, y.toString, sim)
   }
   def calc_sim (x: Tuple2[String, Set[String]], all: Array[Tuple2[String, Set[String]]]):
         Tuple2[String, Array[Tuple2[String,Double]]] = {
