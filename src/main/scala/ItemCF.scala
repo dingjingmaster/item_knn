@@ -134,7 +134,7 @@ object ItemCF {
     ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
-    jaccardRDD.repartition(1).saveAsTextFile(gidRecomPath)
+    jaccardRDD.saveAsTextFile(gidRecomPath)
   }
 
   def calc_sim (x: Int, y: Int, dict: Map[Int, Set[String]]): Tuple3[String, String, Double] = {
