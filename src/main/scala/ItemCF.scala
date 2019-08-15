@@ -109,7 +109,8 @@ object ItemCF {
     val itemCount = gidUidRDD.count()
     log.info("参与计算的物品数量：%d".format(itemCount))
     val gidUidListG = sc.broadcast(gidUidRDD.map(_._1.toInt).collect())
-    val gidUidRDD1 = gidUidRDD.map(_._1.toInt).flatMap(x=>{
+    val gidUidRDD1 = gidUidRDD.repartition(5000)
+      .map(_._1.toInt).flatMap(x=>{
       val gid1 = x
       val it = gidUidListG.value.iterator
       val arr = ListBuffer[Tuple2[Int, Int]]()
