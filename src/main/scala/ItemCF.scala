@@ -9,7 +9,7 @@ import org.apache.log4j.Level
 
 import scala.util.control._
 import scala.collection.Map
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 object ItemCF {
   def main(args: Array[String]): Unit = {
@@ -70,43 +70,69 @@ object ItemCF {
 //      it1 += 1
 //    }
 //    val jaccardRDD = sc.parallelize(arr).map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
-    ////////////////////////////////////  单机版结束  ////////////////////////////////////////////
+    ////////////////////////////////////  单机版结束  ///////////////////////////////////////////////
 
 
-    ///////////////////////////////////  全局变量  ////////////////////////////////////////////
+    ///////////////////////////////////  全局变量  //////////////////////////////////////////////////
+//    val itemCount = gidUidRDD.count()
+//    log.info("参与计算的物品数量：%d".format(itemCount))
+    /* 开始计算 */
+//    var gid1 = 0
+//    var gid2 = 0
+//    var index = 1
+//    val gidUidLocal = gidUidRDD.map(_._1.toInt).collect()
+//    var it1 = gidUidLocal.iterator
+//    val arrlen = gidUidLocal.length
+//    val arr = new collection.mutable.ListBuffer[Tuple2[Int, Int]]()
+//
+//    while (it1.hasNext) {
+//      gid1 = it1.next()
+//      val it2 = gidUidLocal.iterator
+//      while (it2.hasNext) {
+//        gid2 = it2.next()
+//        if(gid2 > gid1) {
+//          arr.append((gid1, gid2))
+//        }
+//      }
+//      if (index % 100 == 0)
+//        log.info("物品相似度对 %d 生成！ 生成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
+//      index += 1
+//    }
+//    val gidUidG = sc.broadcast(gidUidRDD.map(x=>(x._1.toInt, x._2)).collectAsMap())
+//    gidUidRDD.unpersist(true)
+//    val jaccardRDD = sc.parallelize(arr,1000)
+//      .map(x=>calc_sim(x._1, x._2, gidUidG.value))
+//      .map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
+    //////////////////////////////////////////  全局变量结束  ///////////////////////////////////////////
+
+    ////////////////////////////// 全局变量2 ////////////////////////////////////////////
     val itemCount = gidUidRDD.count()
     log.info("参与计算的物品数量：%d".format(itemCount))
-    /* 开始计算 */
-    var gid1 = 0
-    var gid2 = 0
-    var index = 1
-    val gidUidLocal = gidUidRDD.map(_._1.toInt).collect()
-    var it1 = gidUidLocal.iterator
-    val arrlen = gidUidLocal.length
-    val arr = new collection.mutable.ListBuffer[Tuple2[Int, Int]]()
+    val gidUidListG = sc.broadcast(gidUidRDD.map(_._1.toInt).collect())
+    val gidUidRDD1 = gidUidRDD.map(_._1.toInt).flatMap(x=>{
+      val gid1 = x
+      val it = gidUidListG.value.iterator
+      val arr = ListBuffer[Tuple2[Int, Int]]()
 
-    while (it1.hasNext) {
-      gid1 = it1.next()
-      val it2 = gidUidLocal.iterator
-      while (it2.hasNext) {
-        gid2 = it2.next()
-        if(gid2 > gid1) {
-          arr.append((gid1, gid2))
-        }
+      while (it.hasNext) {
+        arr.append((gid1, it.next()))
       }
-      if (index % 100 == 0)
-        log.info("物品相似度对 %d 生成！ 生成占比: %2.3f%%!".format(index, index.toFloat/itemCount * 100))
-      index += 1
-    }
-    val gidUidG = sc.broadcast(gidUidRDD.map(x=>(x._1.toInt, x._2)).collectAsMap())
-    gidUidRDD.unpersist(true)
-    val jaccardRDD = sc.parallelize(arr,1000)
-      .map(x=>calc_sim(x._1, x._2, gidUidG.value))
-      .map(x => x._1 + "\t" + x._2 + "\t" + x._3.toString)
-    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    ////////////////////////////// broadcast ///////////////////////////////////////////
-//    val jaccardRDD = gidUidRDD.map(x=>calc_sim(x, gidDictG.value)).map(x=>x._1 + "\t" + x._2.mkString("{]"))
+      for (i <- arr)
+        yield i
+    }).persist(StorageLevel.DISK_ONLY)
+    gidUidListG.destroy()
+    val gidUidDictG = sc.broadcast(gidUidRDD.map(x=>(x._1.toInt, x._2)).collectAsMap())
+    gidUidRDD.unpersist(true)
+    val jaccardRDD = gidUidRDD1.map(x=>{
+      val gid1 = x._1
+      val gid2 = x._2
+      var sim = 0.0
+      if(gidUidDictG.value.contains(gid1) && gidUidDictG.value.contains(gid2)) {
+        sim = jaccard(gidUidDictG.value(gid1), gidUidDictG.value(gid2))
+      }
+      (gid1.toString, gid2.toString, sim.toString)
+    }).map(x=>x._1 + "\t" + x._2 + "\t" + x._3)
     ////////////////////////////////////////////////////////////////////////////////////
 
     /* 结果保存 */
