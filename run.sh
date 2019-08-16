@@ -13,6 +13,7 @@ read_event_gid_uid="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/knn_"${rea
 read_event_uid_map_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/uid_map/"
 read_event_gid_map_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/gid_map/"
 sim_result_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/item_recomm/"
+recomm_result_path="hdfs://10.26.26.145:8020/rs/dingjing/knn/${today}/recomm_list/"
 
 spark_run="spark-submit --total-executor-cores=30 --executor-memory=20g --driver-memory 10g "
 
@@ -34,7 +35,7 @@ function hdfs_exist() {
 }
 
 # 准备数据
-for((i=0;i<2;++i))
+for((i=0;i<3;++i))
 do
     hdfs_exist "${read_event_gid_uid}"
     if [[ $? -ne 0 ]]
@@ -51,6 +52,15 @@ do
         cd ${work_dir}
         hadoop fs -rmr "${sim_result_path}"
         ${spark_run} --class ItemCF ./jar/*.jar "${read_event_gid_uid}" "${read_event_gid_map_path}" "${sim_result_path}"
+        continue
+    fi
+
+    hdfs_exist "${recomm_result_path}"
+    if [[ $? -ne 0 ]]
+    then
+        cd ${work_dir}
+        hadoop fs -rmr "${recomm_result_path}"
+        ${spark_run} --class GenRecommList ./jar/*.jar "${sim_result_path}" "${recomm_result_path}"
         continue
     fi
     break
