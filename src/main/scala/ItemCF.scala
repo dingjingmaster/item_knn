@@ -137,7 +137,8 @@ object ItemCF {
     val gidMapG = sc.broadcast(
       sc.textFile(gidmapPath)
         .map(_.split("\t"))
-        .map(x=>(x(0).toInt, x(1))).collectAsMap())
+        .filter(_.length==2)
+        .map(x=>(x(1).toInt, x(0))).collectAsMap())
     jaccardRDD.map(x=>{
       var str = ""
       if(gidMapG.value.contains(x._1) && gidMapG.value.contains(x._2)) {
